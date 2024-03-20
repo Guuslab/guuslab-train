@@ -27,6 +27,10 @@ export const getWeather = async () => {
     return weatherData;
   } catch (error) {
     console.error(error);
-    throw error;
+    if (error.name === 'AxiosError' && error.message === 'Network Error') {
+      throw new Error('Er is een netwerkfout opgetreden. Controleer uw netwerkverbinding en of er geen adblocker actief is.');
+    } else {
+      throw error;
+    }
   }
 };
