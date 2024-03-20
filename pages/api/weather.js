@@ -3,7 +3,7 @@ import { fetchWeatherApi } from 'openmeteo';
 
 export const getWeather = async () => {
   try {
-    const locationResponse = await axios.get('http://ip-api.com/json');
+    const locationResponse = await axios.get('https://ip-api.com/json');
     const location = locationResponse.data;
 
     const params = {
