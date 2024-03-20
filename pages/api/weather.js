@@ -3,12 +3,12 @@ import { fetchWeatherApi } from 'openmeteo';
 
 export const getWeather = async () => {
   try {
-    const locationResponse = await axios.get('https://ip-api.com/json');
+    const locationResponse = await axios.get('https://geolocation-db.com/json/');
     const location = locationResponse.data;
 
     const params = {
-      "latitude": location.lat,
-      "longitude": location.lon,
+      "latitude": location.latitude,
+      "longitude": location.longitude,
       "hourly": "temperature_2m"
     };
 
