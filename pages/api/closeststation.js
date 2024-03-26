@@ -1,24 +1,19 @@
+// Bestand: pages/api/closeststation.js
 import axios from 'axios';
-import { getLocation } from './location'; // Replace './location' with the path to your location.js file
 
-export const getClosestStations = async () => {
+export default async (req, res) => {
   try {
-    const location = await getLocation();
+    const { lat, lng } = req.query;
 
-    const url = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/stations/nearest?lat=${location.latitude}&lng=${location.longitude}&limit=1`;
-    const response = await axios.get(url, {
+    const nsRes = await axios.get(`https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/stations/nearest?lat=${lat}&lng=${lng}&limit=1`, {
       headers: {
         'Ocp-Apim-Subscription-Key': process.env.API_KEY,
         'cache-control': 'no-store'
       }
     });
-    const stations = response.data;
 
-    console.log(stations);
-
-    return stations;
+    res.json(nsRes.data);
   } catch (error) {
-    console.error(error);
-    throw error;
+    res.status(500).json({ error: error.toString() });
   }
 };

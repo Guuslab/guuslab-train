@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import styles from "@/styles/Home.module.css";
 import { getWeather } from '@/pages/api/weather';
-import { getClosestStations } from '@/pages/api/closeststation';
+import { getLocation } from '@/pages/api/location';
 
 export default function Home() {
   const [weather, setWeather] = useState(null);
@@ -18,6 +18,7 @@ export default function Home() {
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [trainResults, setTrainResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingTemperature, setLoadingTemperature] = useState(true);
   
   
   const handleCircleClick = (e) => {
@@ -77,36 +78,42 @@ export default function Home() {
   };
 
 
-  async function logStations() {
-    try {
-      const stations = await getClosestStations();
-      console.log(stations);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-  
-  logStations();
-
-useEffect(() => {
-  getWeather()
-    .then(weatherData => {
-      setWeather(weatherData);
-      setLoading(false);
-      // Update the temperature state
-      if (weatherData && weatherData.hourly && weatherData.hourly.temperature2m) {
-        const currentHour = new Date().getHours();
-        const currentTemperature = weatherData.hourly.temperature2m[currentHour];
-        setTemperature(currentTemperature);
+  useEffect(() => {
+    getWeather()
+      .then(weatherData => {
+        setWeather(weatherData);
+        setLoading(false);
+        // Update the temperature state
+        if (weatherData && weatherData.hourly && weatherData.hourly.temperature2m) {
+          const currentHour = new Date().getHours();
+          const currentTemperature = weatherData.hourly.temperature2m[currentHour];
+          setTemperature(currentTemperature);
+          setLoadingTemperature(false);
+        }
+      })
+      .catch(error => {
+        console.error(error);
+        setLoading(false);
         setLoadingTemperature(false);
+      });
+  
+      async function fetchClosestStation() {
+        try {
+          const location = await getLocation();
+    
+          const response = await fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`);
+          const data = await response.json();
+    
+          // Update `searchFrom` met de nieuwe waarde
+          const lang = data.payload[0].namen.lang;
+          setSearchFrom(lang);
+        } catch (error) {
+          console.error(error);
+        }
       }
-    })
-    .catch(error => {
-      console.error(error);
-      setLoading(false);
-      setLoadingTemperature(false);
-    });
-}, []);
+    
+      fetchClosestStation();
+  }, []);
 
 // In your render method
 // {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{!loadingTemperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>}
@@ -158,6 +165,27 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
   temperature = weather.hourly.temperature_2m[closestHour];
 }
 
+async function fetchClosestStation() {
+  try {
+    const location = await getLocation();
+
+    const response = await fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`);
+    const data = await response.json();
+
+    console.log(data); // Debugging
+
+    // Definieer `lang` hier, na de API-aanroep
+    const lang = data.payload[0].namen.lang;
+    console.log(lang); // Debugging
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+fetchClosestStation();
+
+
+
   return (
 <div className={styles.container}>
   {error && <div className={styles.error}>{error}</div>}
@@ -179,18 +207,21 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
     )}
 
       
-      <div className={`${styles.searchField} ${styles.firstSearchField}`}>
-        <label>Van:</label>
-        <input type="text" value={searchFrom} onChange={handleSearchChangeFrom} />
-        {stationsFrom.length > 0 && (
-          <div className={styles.stationsList}>
-            {stationsFrom.map(station => (
-              <div key={station.UICCode} className={styles.stationItem} onClick={() => handleStationClickFrom(station.namen.lang)}>
-                {station.namen.lang}
-              </div>
-            ))}
-          </div>
-        )}
+
+
+
+    <div className={`${styles.searchField} ${styles.firstSearchField}`}>
+      <label>Van:</label>
+      <input type="text" value={searchFrom} onChange={handleSearchChangeFrom} />
+      {stationsFrom.length > 0 && (
+        <div className={styles.stationsList}>
+          {stationsFrom.map(station => (
+            <div key={station.UICCode} className={styles.stationItem} onClick={() => handleStationClickFrom(station.namen.lang)}>
+              {station.namen.lang}
+            </div>
+          ))}
+        </div>
+      )}
       </div>
 
       <div className={styles.searchField}>
