@@ -285,7 +285,9 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
           </div>
       )}
 
+      <a href="/legal" className={styles.footerLink}>Legal</a>
     </div>
+    
   );
 }
 

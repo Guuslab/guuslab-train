@@ -260,3 +260,14 @@
     padding: 5px;
   }
 }
+
+.footerLink {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  text-align: center;
+  background-color: var(--tertiary);
+  padding: 10px 0;
+  font-size: 16px;
+  color: var(--secondary);
+}
