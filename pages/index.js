@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import styles from "@/styles/Home.module.css";
 import { getWeather } from '@/pages/api/weather';
-
+import { getClosestStations } from '@/pages/api/closeststation';
 
 export default function Home() {
   const [weather, setWeather] = useState(null);
@@ -17,6 +17,8 @@ export default function Home() {
   const [showNewUI, setShowNewUI] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [trainResults, setTrainResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
   
   const handleCircleClick = (e) => {
     e.stopPropagation();
@@ -75,19 +77,39 @@ export default function Home() {
   };
 
 
-useEffect(() => {
-  const fetchWeather = async () => {
+  async function logStations() {
     try {
-      const weatherData = await getWeather();
-      setWeather(weatherData);
-      console.log(weatherData); // Debugging
+      const stations = await getClosestStations();
+      console.log(stations);
     } catch (error) {
-      setError(error.toString());
+      console.error(error);
     }
-  };
-  fetchWeather();
+  }
+  
+  logStations();
+
+useEffect(() => {
+  getWeather()
+    .then(weatherData => {
+      setWeather(weatherData);
+      setLoading(false);
+      // Update the temperature state
+      if (weatherData && weatherData.hourly && weatherData.hourly.temperature2m) {
+        const currentHour = new Date().getHours();
+        const currentTemperature = weatherData.hourly.temperature2m[currentHour];
+        setTemperature(currentTemperature);
+        setLoadingTemperature(false);
+      }
+    })
+    .catch(error => {
+      console.error(error);
+      setLoading(false);
+      setLoadingTemperature(false);
+    });
 }, []);
 
+// In your render method
+// {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{!loadingTemperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>}
 
 // Update je handleTripClick functie om de resultaten op te slaan in de state
 const handleTripClick = async (trip) => {
@@ -104,12 +126,12 @@ const handleTripClick = async (trip) => {
         const res = await axios.get(`/api/trein/${ritnummer}`);
         results[ritnummer] = res.data;
       } catch (error) {
-        console.error(error);
+        // console.error(error);
       }
     }
   }
 
-  console.log('Treinresultaten voor opslag:', results); // Debugging
+  console.log('Treinen:', results); // Debugging
 
   // Sla de resultaten op in de state
   setTrainResults(Object.values(results));
@@ -128,23 +150,34 @@ const closeOverlay = () => {
   </div>
 ))}
 
+
+let temperature;
+if (weather && weather.hourly && weather.hourly.temperature_2m) {
+  const currentHour = new Date().getHours();
+  const closestHour = currentHour + (currentHour % 1 >= 0.5 ? 1 : 0);
+  temperature = weather.hourly.temperature_2m[closestHour];
+}
+
   return (
-    <div className={styles.container}>
-    {error && <div className={styles.error}>{error}</div>}
+<div className={styles.container}>
+  {error && <div className={styles.error}>{error}</div>}
     {weather && (
       <div className={styles.weather}>
-        <div className={circleClass} onClick={handleCircleClick}>
-          {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{`${weather.hourly.temperature2m[Math.round(new Date().getMinutes()/60) + new Date().getHours()].toFixed(1)}°C`}</p>}
-          {showNewUI && <div className={styles.newUI}>
-            <p className={styles.tempratuur}>{`${weather.hourly.temperature2m[Math.round(new Date().getMinutes()/60) + new Date().getHours()].toFixed(1)}°C`}</p>
+        {loading ? (
+          <p>Laden...</p>
+        ) : (
+          <div className={circleClass} onClick={handleCircleClick}>
+            {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{temperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>}
+            {showNewUI && <div className={styles.newUI}>
+            <p className={styles.tempratuur}>{temperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>
             
-          
-          
-          </div>}
-        </div>
-        {/* {circleClass === styles.temperatureCircleExpanded && <button className={styles.closeButton} onClick={(e) => {e.stopPropagation(); setCircleClass(styles.temperatureCircle); setShowNewUI(false);}}>X</button>} */}
+
+            </div>}
+          </div>
+        )}
       </div>
     )}
+
       
       <div className={`${styles.searchField} ${styles.firstSearchField}`}>
         <label>Van:</label>
@@ -234,3 +267,5 @@ const closeOverlay = () => {
 
 // npm run dev -- -H 192.168.2.14
 // npm run dev -- -H 10.52.17.152
+
+// http-server out -S -C cert.pem -K key.pem

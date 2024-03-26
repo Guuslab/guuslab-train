@@ -1,36 +1,20 @@
 import axios from 'axios';
-import { fetchWeatherApi } from 'openmeteo';
+import { getLocation } from './location'; // Replace './location' with the path to your location.js file
 
 export const getWeather = async () => {
   try {
-    const locationResponse = await axios.get('https://geolocation-db.com/json/');
-    const location = locationResponse.data;
+    const location = await getLocation();
 
-    const params = {
-      "latitude": location.latitude,
-      "longitude": location.longitude,
-      "hourly": "temperature_2m"
-    };
+    let url = `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,visibility&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,rain_sum&timezone=auto&forecast_days=14`;
 
-    console.log(params); // Debugging
+    const response = await axios.get(url);
+    const weatherData = response.data;
 
-    const url = "https://api.open-meteo.com/v1/forecast";
-    const responses = await fetchWeatherApi(url, params);
-    const response = responses[0];
-    const hourly = response.hourly();
-    const weatherData = {
-      hourly: {
-        time: hourly.time(),
-        temperature2m: hourly.variables(0).valuesArray(),
-      },
-    };
+    console.log(weatherData); // Debugging
+
     return weatherData;
   } catch (error) {
     console.error(error);
-    if (error.name === 'AxiosError' && error.message === 'Network Error') {
-      throw new Error('Er is een netwerkfout opgetreden. Controleer uw netwerkverbinding en of er geen adblocker actief is.');
-    } else {
-      throw error;
-    }
+    throw error;
   }
 };

@@ -7,7 +7,8 @@ export default async (req, res) => {
       params: req.query,
       headers: {
         'x-caller-id': 'your-caller-id', // vervang dit door je eigen caller-id
-        'Ocp-Apim-Subscription-Key': process.env.API_KEY
+        'Ocp-Apim-Subscription-Key': process.env.API_KEY,
+        'cache-control': 'no-store'
       }
     });
     res.json(nsRes.data);
