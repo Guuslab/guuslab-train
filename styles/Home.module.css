@@ -217,7 +217,7 @@
 
 .trainImageContainer {
   height: calc(5vw + 5vh - 10px);
-  max-width: 40vw;
+  max-width: 60vw;
   overflow-x: scroll;
   display: flex;
   background-color: var(--secondary-50);
@@ -268,8 +268,25 @@
   width: 10%;
   text-align: center;
   background-color: var(--tertiary);
-  padding: 10px 10px;
+  padding: 20px 20px;
   font-size: 16px;
   color: var(--secondary);
   border-top-right-radius: 20px;
+}
+
+.switch {
+  background-color: var(--tertiary);
+  fill: none;
+  stroke: #dd403a;
+  stroke-linecap: round;
+  stroke-miterlimit: 10;
+  stroke-width: 11px;
+}
+.switchButon {
+  all: unset;
+  background-color: var(--secondary);
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  margin-bottom: -10px;
 }

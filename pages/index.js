@@ -205,23 +205,40 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
 
 
 
-    <div className={`${styles.searchField} ${styles.firstSearchField}`}>
-      <label>Van:</label>
-      <input type="text" value={searchFrom} onChange={handleSearchChangeFrom} />
-      {stationsFrom.length > 0 && (
-        <div className={styles.stationsList}>
-          {stationsFrom.map(station => (
-            <div key={station.UICCode} className={styles.stationItem} onClick={() => handleStationClickFrom(station.namen.lang)}>
-              {station.namen.lang}
-            </div>
-          ))}
-        </div>
-      )}
+            <div className={`${styles.searchField} ${styles.firstSearchField}`}>
+        <label>Van:</label>
+        <input type="text" value={searchFrom} onChange={handleSearchChangeFrom} onFocus={() => setSearchFrom('')} />
+        {stationsFrom.length > 0 && (
+          <div className={styles.stationsList}>
+            {stationsFrom.map(station => (
+              <div key={station.UICCode} className={styles.stationItem} onClick={() => handleStationClickFrom(station.namen.lang)}>
+                {station.namen.lang}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      <button className={styles.switchButon} onClick={() => {
+        const temp = searchFrom;
+        setSearchFrom(searchTo);
+        setSearchTo(temp);
+      }}>
+
+        <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 161.62 142.47">
+          <line className={styles.switch} x1="43.05" y1="5.5" x2="43.05" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="5.5" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="80.6" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="118.57" y1="136.97" x2="118.57" y2="5.5" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="156.12" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="81.02" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+        </svg>
+
+      </button>
 
       <div className={styles.searchField}>
         <label>Naar:</label>
-        <input type="text" value={searchTo} onChange={handleSearchChangeTo} />
+        <input type="text" value={searchTo} onChange={handleSearchChangeTo} onFocus={() => setSearchTo('')} />
         {stationsTo.length > 0 && (
           <div className={styles.stationsList}>
             {stationsTo.map(station => (
@@ -276,10 +293,15 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
                   ))}
                 </div>
                 <div className={styles.trainLength}>
-                  Lengte: {result.lengte}
+                  Lengte: {result.lengte} <br/>
+                  spoor: {result.spoor} <br/>
+                  drukte: {selectedTrip.legs[index].crowdForecast === 'UNKNOWN' ? 'niet bekend' : selectedTrip.legs[index].crowdForecast}
                 </div>
               </div>
             ))}
+            <div className={styles.info}> 
+            
+            </div>
 
             </div>
           </div>
