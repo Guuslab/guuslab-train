@@ -78,42 +78,37 @@ export default function Home() {
   };
 
 
-  useEffect(() => {
-    getWeather()
-      .then(weatherData => {
-        setWeather(weatherData);
-        setLoading(false);
-        // Update the temperature state
-        if (weatherData && weatherData.hourly && weatherData.hourly.temperature2m) {
-          const currentHour = new Date().getHours();
-          const currentTemperature = weatherData.hourly.temperature2m[currentHour];
-          setTemperature(currentTemperature);
-          setLoadingTemperature(false);
-        }
-      })
-      .catch(error => {
-        console.error(error);
-        setLoading(false);
+ useEffect(() => {
+  async function fetchData() {
+    try {
+      const location = await getLocation();
+
+      const weatherPromise = getWeather(location);
+      const stationPromise = fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`).then(response => response.json());
+
+      const [weatherData, stationData] = await Promise.all([weatherPromise, stationPromise]);
+
+      setWeather(weatherData);
+      setLoading(false);
+
+      if (weatherData && weatherData.hourly && weatherData.hourly.temperature2m) {
+        const currentHour = new Date().getHours();
+        const currentTemperature = weatherData.hourly.temperature2m[currentHour];
+        setTemperature(currentTemperature);
         setLoadingTemperature(false);
-      });
-  
-      async function fetchClosestStation() {
-        try {
-          const location = await getLocation();
-    
-          const response = await fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`);
-          const data = await response.json();
-    
-          // Update `searchFrom` met de nieuwe waarde
-          const lang = data.payload[0].namen.lang;
-          setSearchFrom(lang);
-        } catch (error) {
-          console.error(error);
-        }
       }
-    
-      fetchClosestStation();
-  }, []);
+
+      const lang = stationData.payload[0].namen.lang;
+      setSearchFrom(lang);
+    } catch (error) {
+      console.error(error);
+      setLoading(false);
+      setLoadingTemperature(false);
+    }
+  }
+
+  fetchData();
+}, []);
 
 // In your render method
 // {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{!loadingTemperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>}
@@ -164,6 +159,7 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
   const closestHour = currentHour + (currentHour % 1 >= 0.5 ? 1 : 0);
   temperature = weather.hourly.temperature_2m[closestHour];
 }
+
 
 // async function fetchClosestStation() {
 //   try {
