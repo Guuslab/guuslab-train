@@ -268,8 +268,7 @@
   width: 10%;
   text-align: center;
   background-color: var(--tertiary);
-  padding: 10px 0;
-  padding-right: 10px;
+  padding: 10px 10px;
   font-size: 16px;
   color: var(--secondary);
   border-top-right-radius: 20px;
