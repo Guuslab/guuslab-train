@@ -78,15 +78,25 @@ export default function Home() {
   };
 
 
- useEffect(() => {
+useEffect(() => {
   async function fetchData() {
+    let weatherData;
     try {
-      const location = await getLocation();
+      let location;
+      try {
+        location = await getLocation();
+        const stationPromise = fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`).then(response => response.json());
+        weatherData = await getWeather(location);
 
-      const weatherPromise = getWeather(location);
-      const stationPromise = fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`).then(response => response.json());
-
-      const [weatherData, stationData] = await Promise.all([weatherPromise, stationPromise]);
+        const stationData = await stationPromise;
+        const lang = stationData.payload[0].namen.lang;
+        setSearchFrom(lang);
+      } catch (error) {
+        console.error('Er is iets misgegaan bij het ophalen van de locatie:', error);
+        // Als er een fout optreedt, gebruik dan de coördinaten van Utrecht
+        location = { latitude: 52.0907, longitude: 5.1214 };
+        weatherData = await getWeather(location);
+      }
 
       setWeather(weatherData);
       setLoading(false);
@@ -97,9 +107,6 @@ export default function Home() {
         setTemperature(currentTemperature);
         setLoadingTemperature(false);
       }
-
-      const lang = stationData.payload[0].namen.lang;
-      setSearchFrom(lang);
     } catch (error) {
       console.error(error);
       setLoading(false);
@@ -205,7 +212,7 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
 
 
 
-            <div className={`${styles.searchField} ${styles.firstSearchField}`}>
+      <div className={`${styles.searchField} ${styles.firstSearchField}`}>
         <label>Van:</label>
         <input type="text" value={searchFrom} onChange={handleSearchChangeFrom} onFocus={() => setSearchFrom('')} />
         {stationsFrom.length > 0 && (
@@ -224,7 +231,6 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
         setSearchFrom(searchTo);
         setSearchTo(temp);
       }}>
-
         <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 161.62 142.47">
           <line className={styles.switch} x1="43.05" y1="5.5" x2="43.05" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
           <line className={styles.switch} x1="5.5" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
@@ -233,7 +239,6 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
           <line className={styles.switch} x1="156.12" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
           <line className={styles.switch} x1="81.02" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
         </svg>
-
       </button>
 
       <div className={styles.searchField}>
