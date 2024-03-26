@@ -264,10 +264,13 @@
 .footerLink {
   position: fixed;
   bottom: 0;
-  width: 100%;
+  left: 0;
+  width: 10%;
   text-align: center;
   background-color: var(--tertiary);
   padding: 10px 0;
+  padding-right: 10px;
   font-size: 16px;
   color: var(--secondary);
+  border-top-right-radius: 20px;
 }

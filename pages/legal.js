@@ -1,9 +1,13 @@
 import React from 'react';
+import Link from 'next/link';
 import styles from "@/styles/legal.module.css";
 
 const LegalPage = () => {
   return (
     <div>
+      <Link href="/" className={styles.homeButton}>
+        Home
+      </Link>
       <h1>Legal Information</h1>
       <h2>Technologies Used</h2>
       <ul>
