@@ -165,24 +165,23 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
   temperature = weather.hourly.temperature_2m[closestHour];
 }
 
-async function fetchClosestStation() {
-  try {
-    const location = await getLocation();
+// async function fetchClosestStation() {
+//   try {
+//     const location = await getLocation();
 
-    const response = await fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`);
-    const data = await response.json();
+//     const response = await fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`);
+//     const data = await response.json();
 
-    console.log(data); // Debugging
+//     console.log(data); 
 
-    // Definieer `lang` hier, na de API-aanroep
-    const lang = data.payload[0].namen.lang;
-    console.log(lang); // Debugging
-  } catch (error) {
-    console.error(error);
-  }
-}
+//     const lang = data.payload[0].namen.lang;
+//     console.log(lang); 
+//   } catch (error) {
+//     console.error(error);
+//   }
+// }
 
-fetchClosestStation();
+// fetchClosestStation();
 
 
 
