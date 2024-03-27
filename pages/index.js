@@ -115,7 +115,22 @@ useEffect(() => {
   }
 
   fetchData();
+
+  
 }, []);
+
+
+useEffect(() => {
+  if (selectedTrip) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = 'auto';
+  }
+
+  return () => {
+    document.body.style.overflow = 'auto';
+  };
+}, [selectedTrip]);
 
 // In your render method
 // {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{!loadingTemperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>}
@@ -232,12 +247,12 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
         setSearchTo(temp);
       }}>
         <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 161.62 142.47">
-          <line className={styles.switch} x1="43.05" y1="5.5" x2="43.05" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="5.5" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="80.6" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="118.57" y1="136.97" x2="118.57" y2="5.5" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="156.12" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="81.02" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: '#dd403a', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="43.05" y1="5.5" x2="43.05" y2="136.97" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="5.5" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="80.6" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="118.57" y1="136.97" x2="118.57" y2="5.5" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="156.12" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line className={styles.switch} x1="81.02" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
         </svg>
       </button>
 

@@ -107,7 +107,7 @@
 }
 
 .searchButton {
-  background-color: var(--tertiary);
+  background-color: var(--primary);
   color: var(--secondary); /* white text */
   padding: 14px 20px;
   margin: 8px 0;
@@ -126,7 +126,7 @@
   flex-direction: column;
   gap: 10px;
   border-radius: 15px;
-  background-color: var(--tertiary);
+  background-color: var(--primary);
   padding: 10px;
   max-height: 200px;
   overflow-y: auto;
@@ -136,7 +136,7 @@
   cursor: pointer;
   padding: 3px;
   border-radius: 5px;
-  background-color: var(--tertiary);
+  background-color: var(--primary);
   transition: all 0.1s ease-in-out;
   text-align: center;
   color: var(--secondary);
@@ -174,16 +174,17 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   background-color: var(--secondary-50);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   display: flex;
-  justify-content: center;
+  /* justify-content: center; */
   align-items: center;
   flex-direction: column;
   transition: all 0.3s ease-in-out;
+  overflow-y: scroll;
 }
 
 .overlay button {
@@ -193,18 +194,24 @@
   margin-right: 50px;
 }
 
+.overlayContent {
+  margin-top: 100px;
+  margin-bottom: 200px;
+}
+
 .tripCard {
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s ease-in-out;
-  background-color: var(--tertiary);
-  color: var(--secondary);
+  background-color: var(--primary-10);
+  color: var(--primary);
   padding: 10px;
 }
 
 .tripCard:hover {
   transform: scale(1.05);
   background-color: var(--primary);
+  color: var(--secondary);
 }
 
 .actualTime {
@@ -220,8 +227,8 @@
   max-width: 60vw;
   overflow-x: scroll;
   display: flex;
-  background-color: var(--secondary-50);
-  border: 2px solid var(--tertiary);
+  background-color: var(--primary-50);
+  border: 2px solid var(--primary);
   border-radius: 30px;
   padding: 10px;
   margin: 20px 0px;
@@ -268,21 +275,13 @@
   left: 0;
   width: 10%;
   text-align: center;
-  background-color: var(--tertiary);
+  background-color: var(--primary);
   padding: 20px 20px;
   font-size: 16px;
   color: var(--secondary);
   border-top-right-radius: 20px;
 }
 
-.switch {
-  background-color: var(--tertiary);
-  fill: none;
-  stroke: #dd403a;
-  stroke-linecap: round;
-  stroke-miterlimit: 10;
-  stroke-width: 11px;
-}
 .switchButon {
   all: unset;
   background-color: var(--secondary);
