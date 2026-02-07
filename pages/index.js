@@ -1,58 +1,141 @@
-require('dotenv').config();
 import axios from 'axios';
-import { useEffect, useState } from 'react';
-import styles from "@/styles/Home.module.css";
-import { getWeather } from '@/pages/api/weather';
-import { getLocation } from '@/pages/api/location';
+import { useEffect, useMemo, useState } from 'react';
+import styles from '@/styles/Home.module.css';
+
+const FAVORITES_STORAGE_KEY = 'favorite-routes';
+const MAX_FAVORITES = 3;
 
 export default function Home() {
-  const [weather, setWeather] = useState(null);
   const [error, setError] = useState(null);
   const [searchFrom, setSearchFrom] = useState('');
   const [searchTo, setSearchTo] = useState('');
   const [stationsFrom, setStationsFrom] = useState([]);
   const [stationsTo, setStationsTo] = useState([]);
   const [trips, setTrips] = useState([]);
-  const [circleClass, setCircleClass] = useState(styles.temperatureCircle);
-  const [showNewUI, setShowNewUI] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [trainResults, setTrainResults] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingTemperature, setLoadingTemperature] = useState(true);
-  
-  
-  const handleCircleClick = (e) => {
-    e.stopPropagation();
-    setCircleClass(circleClass === styles.temperatureCircle ? styles.temperatureCircleExpanded : styles.temperatureCircle);
-    setShowNewUI(!showNewUI);
-    document.body.style.overflow = !showNewUI ? 'hidden' : 'auto';
-  };
+  const [favorites, setFavorites] = useState([]);
+  const [favoriteDepartures, setFavoriteDepartures] = useState({});
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const favoriteKey = (from, to) => `${from}__${to}`;
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FAVORITES_STORAGE_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        setFavorites(parsed.slice(0, MAX_FAVORITES));
+      }
+    } catch (storageError) {
+      console.error('Kon favorieten niet laden:', storageError);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!favorites.length) {
+      setFavoriteDepartures({});
+      return;
+    }
+
+    const fetchUpcomingForFavorites = async () => {
+      const nextDepartures = {};
+
+      await Promise.all(
+        favorites.map(async (favorite) => {
+          const key = favoriteKey(favorite.from, favorite.to);
+          try {
+            const res = await axios.get(
+              `/api/trips?fromStation=${encodeURIComponent(favorite.from)}&toStation=${encodeURIComponent(favorite.to)}`,
+            );
+
+            const upcoming = (res.data?.trips || []).slice(0, 3).map((trip) => {
+              const stop = trip?.legs?.[0]?.stops?.[0];
+              const departureDateTime = stop?.actualDepartureDateTime || stop?.plannedDepartureDateTime;
+              return {
+                departureDateTime,
+                durationInMinutes: trip.actualDurationInMinutes || trip.plannedDurationInMinutes,
+              };
+            });
+
+            nextDepartures[key] = { loading: false, departures: upcoming, failed: false };
+          } catch (fetchError) {
+            nextDepartures[key] = { loading: false, departures: [], failed: true };
+          }
+        }),
+      );
+
+      setFavoriteDepartures(nextDepartures);
+    };
+
+    setFavoriteDepartures((current) => {
+      const loadingMap = { ...current };
+      favorites.forEach((favorite) => {
+        loadingMap[favoriteKey(favorite.from, favorite.to)] = { loading: true, departures: [], failed: false };
+      });
+      return loadingMap;
+    });
+
+    fetchUpcomingForFavorites();
+    const interval = setInterval(fetchUpcomingForFavorites, 60000);
+
+    return () => clearInterval(interval);
+  }, [favorites]);
+
+  useEffect(() => {
+    if (selectedTrip) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [selectedTrip]);
+
+  const canSaveFavorite = useMemo(
+    () => searchFrom.trim().length > 0 && searchTo.trim().length > 0,
+    [searchFrom, searchTo],
+  );
+
+  const isCurrentRouteFavorite = useMemo(
+    () => favorites.some((favorite) => favorite.from === searchFrom && favorite.to === searchTo),
+    [favorites, searchFrom, searchTo],
+  );
 
   const handleSearchChangeFrom = async (event) => {
-    setSearchFrom(event.target.value);
-    if (event.target.value.length > 0) {
-      try {
-        const res = await axios.get(`/api/stations?q=${event.target.value}`);
-        setStationsFrom(res.data.payload);
-      } catch (error) {
-        console.error(error);
-      }
-    } else {
+    const value = event.target.value;
+    setSearchFrom(value);
+
+    if (!value.length) {
       setStationsFrom([]);
+      return;
+    }
+
+    try {
+      const res = await axios.get(`/api/stations?q=${value}`);
+      setStationsFrom(res.data.payload || []);
+    } catch (stationError) {
+      console.error(stationError);
     }
   };
 
   const handleSearchChangeTo = async (event) => {
-    setSearchTo(event.target.value);
-    if (event.target.value.length > 0) {
-      try {
-        const res = await axios.get(`/api/stations?q=${event.target.value}`);
-        setStationsTo(res.data.payload);
-      } catch (error) {
-        console.error(error);
-      }
-    } else {
+    const value = event.target.value;
+    setSearchTo(value);
+
+    if (!value.length) {
       setStationsTo([]);
+      return;
+    }
+
+    try {
+      const res = await axios.get(`/api/stations?q=${value}`);
+      setStationsTo(res.data.payload || []);
+    } catch (stationError) {
+      console.error(stationError);
     }
   };
 
@@ -66,174 +149,140 @@ export default function Home() {
     setStationsTo([]);
   };
 
-  // Voeg deze functie toe aan je component
   const handleSearchClick = async () => {
+    setError(null);
+
+    if (!searchFrom || !searchTo) {
+      setError('Vul eerst zowel vertrek- als aankomststation in.');
+      return;
+    }
+
     try {
-      const res = await axios.get(`/api/trips?fromStation=${searchFrom}&toStation=${searchTo}`);
-      setTrips(res.data.trips);
-      console.log(res.data.trips); // Debugging
-    } catch (error) {
-      console.error(error);
+      const res = await axios.get(
+        `/api/trips?fromStation=${encodeURIComponent(searchFrom)}&toStation=${encodeURIComponent(searchTo)}`,
+      );
+      setTrips(res.data.trips || []);
+      setHasSearched(true);
+    } catch (searchError) {
+      console.error(searchError);
+      setError('Er ging iets mis bij het ophalen van de reizen.');
     }
   };
 
+  const handleSaveFavorite = () => {
+    if (!canSaveFavorite || isCurrentRouteFavorite) return;
 
-useEffect(() => {
-  async function fetchData() {
-    let weatherData;
-    try {
-      let location;
-      try {
-        location = await getLocation();
-        const stationPromise = fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`).then(response => response.json());
-        weatherData = await getWeather(location);
-
-        const stationData = await stationPromise;
-        const lang = stationData.payload[0].namen.lang;
-        setSearchFrom(lang);
-      } catch (error) {
-        console.error('Er is iets misgegaan bij het ophalen van de locatie:', error);
-        // Als er een fout optreedt, gebruik dan de coördinaten van Utrecht
-        location = { latitude: 52.0907, longitude: 5.1214 };
-        weatherData = await getWeather(location);
-      }
-
-      setWeather(weatherData);
-      setLoading(false);
-
-      if (weatherData && weatherData.hourly && weatherData.hourly.temperature2m) {
-        const currentHour = new Date().getHours();
-        const currentTemperature = weatherData.hourly.temperature2m[currentHour];
-        setTemperature(currentTemperature);
-        setLoadingTemperature(false);
-      }
-    } catch (error) {
-      console.error(error);
-      setLoading(false);
-      setLoadingTemperature(false);
-    }
-  }
-
-  fetchData();
-
-  
-}, []);
-
-
-useEffect(() => {
-  if (selectedTrip) {
-    document.body.style.overflow = 'hidden';
-  } else {
-    document.body.style.overflow = 'auto';
-  }
-
-  return () => {
-    document.body.style.overflow = 'auto';
+    const nextFavorites = [{ from: searchFrom, to: searchTo }, ...favorites].slice(0, MAX_FAVORITES);
+    setFavorites(nextFavorites);
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(nextFavorites));
   };
-}, [selectedTrip]);
 
-// In your render method
-// {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{!loadingTemperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>}
+  const handleRemoveFavorite = (route) => {
+    const nextFavorites = favorites.filter((favorite) => !(favorite.from === route.from && favorite.to === route.to));
+    setFavorites(nextFavorites);
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(nextFavorites));
+  };
 
-// Update je handleTripClick functie om de resultaten op te slaan in de state
-const handleTripClick = async (trip) => {
-  setSelectedTrip(trip);
+  const handleTripClick = async (trip) => {
+    setSelectedTrip(trip);
 
-  let results = {};
+    const results = {};
+    const legs = trip.legs || [];
 
-  if (trip.legs && trip.legs.length > 0) {
-    for (let i = 0; i < trip.legs.length; i++) {
-      const ritnummer = trip.legs[i].product.number;
-      console.log(`Ritnummer: ${ritnummer}`); // Debugging
+    for (let i = 0; i < legs.length; i += 1) {
+      const ritnummer = legs[i]?.product?.number;
+      if (!ritnummer) continue;
 
       try {
         const res = await axios.get(`/api/trein/${ritnummer}`);
         results[ritnummer] = res.data;
-      } catch (error) {
-        // console.error(error);
+      } catch {
+        // bewust stil: niet alle ritnummers hebben trein-informatie
       }
     }
-  }
 
-  console.log('Treinen:', results); // Debugging
+    setTrainResults(Object.values(results));
+  };
 
-  // Sla de resultaten op in de state
-  setTrainResults(Object.values(results));
-};
+  const closeOverlay = () => {
+    setSelectedTrip(null);
+    setTrainResults([]);
+  };
 
-// Add this function to close the overlay
-const closeOverlay = () => {
-  setSelectedTrip(null);
-  setTrainResults([]);
-};
-
-// Modify your trip rendering code to call handleTripClick when a trip is clicked
-{trips.map((trip, index) => (
-  <div key={index} className={styles.tripCard} onClick={() => handleTripClick(trip)}>
-    ...
-  </div>
-))}
-
-
-let temperature;
-if (weather && weather.hourly && weather.hourly.temperature_2m) {
-  const currentHour = new Date().getHours();
-  const closestHour = currentHour + (currentHour % 1 >= 0.5 ? 1 : 0);
-  temperature = weather.hourly.temperature_2m[closestHour];
-}
-
-
-// async function fetchClosestStation() {
-//   try {
-//     const location = await getLocation();
-
-//     const response = await fetch(`/api/closeststation?lat=${location.latitude}&lng=${location.longitude}`);
-//     const data = await response.json();
-
-//     console.log(data); 
-
-//     const lang = data.payload[0].namen.lang;
-//     console.log(lang); 
-//   } catch (error) {
-//     console.error(error);
-//   }
-// }
-
-// fetchClosestStation();
-
-
+  const formatTravelTime = (minutes) => `${Math.floor(minutes / 60)}:${(`0${minutes % 60}`).slice(-2)}`;
 
   return (
-<div className={styles.container}>
-  {error && <div className={styles.error}>{error}</div>}
-    {weather && (
-      <div className={styles.weather}>
-        {loading ? (
-          <p>Laden...</p>
-        ) : (
-          <div className={circleClass} onClick={handleCircleClick}>
-            {!showNewUI && <p className={`${styles.tempratuur} ${showNewUI ? styles.fadeOut : ''}`}>{temperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>}
-            {showNewUI && <div className={styles.newUI}>
-            <p className={styles.tempratuur}>{temperature ? `${temperature.toFixed(1)}°C` : 'Laden...'}</p>
-            
+    <div className={styles.container}>
+      {error && <div className={styles.error}>{error}</div>}
 
-            </div>}
+      {!hasSearched && (
+        <section className={styles.favoritesWidget}>
+          <div className={styles.favoriteHeader}>
+            <h2>Jouw favoriete reizen</h2>
+            <p>Direct vanaf nu: de eerstvolgende 3 treinen per route.</p>
           </div>
-        )}
-      </div>
-    )}
 
-      
+          {favorites.length === 0 ? (
+            <p className={styles.emptyFavorites}>Je hebt nog geen favorieten opgeslagen.</p>
+          ) : (
+            <div className={styles.favoriteGrid}>
+              {favorites.map((favorite) => {
+                const key = favoriteKey(favorite.from, favorite.to);
+                const data = favoriteDepartures[key];
 
+                return (
+                  <article key={key} className={styles.favoriteCard}>
+                    <button
+                      className={styles.favoriteRouteButton}
+                      onClick={() => {
+                        setSearchFrom(favorite.from);
+                        setSearchTo(favorite.to);
+                      }}
+                    >
+                      {favorite.from} → {favorite.to}
+                    </button>
 
+                    <button className={styles.removeFavoriteButton} onClick={() => handleRemoveFavorite(favorite)}>
+                      Verwijder
+                    </button>
+
+                    {data?.loading && <p>Treinen ophalen…</p>}
+                    {data?.failed && <p>Kon vertrektijden niet laden.</p>}
+                    {!data?.loading && !data?.failed && (
+                      <ul className={styles.departureList}>
+                        {(data?.departures || []).map((departure, index) => (
+                          <li key={`${key}-${index}`}>
+                            <span>
+                              {new Date(departure.departureDateTime).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <span>{formatTravelTime(departure.durationInMinutes)}</span>
+                          </li>
+                        ))}
+                        {!data?.departures?.length && <li>Geen vertrekkende treinen gevonden.</li>}
+                      </ul>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className={`${styles.searchField} ${styles.firstSearchField}`}>
         <label>Van:</label>
         <input type="text" value={searchFrom} onChange={handleSearchChangeFrom} onFocus={() => setSearchFrom('')} />
         {stationsFrom.length > 0 && (
           <div className={styles.stationsList}>
-            {stationsFrom.map(station => (
-              <div key={station.UICCode} className={styles.stationItem} onClick={() => handleStationClickFrom(station.namen.lang)}>
+            {stationsFrom.map((station) => (
+              <div
+                key={station.UICCode}
+                className={styles.stationItem}
+                onClick={() => handleStationClickFrom(station.namen.lang)}
+              >
                 {station.namen.lang}
               </div>
             ))}
@@ -241,18 +290,63 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
         )}
       </div>
 
-      <button className={styles.switchButon} onClick={() => {
-        const temp = searchFrom;
-        setSearchFrom(searchTo);
-        setSearchTo(temp);
-      }}>
+      <button
+        className={styles.switchButon}
+        onClick={() => {
+          const temp = searchFrom;
+          setSearchFrom(searchTo);
+          setSearchTo(temp);
+        }}
+      >
         <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 161.62 142.47">
-          <line className={styles.switch} x1="43.05" y1="5.5" x2="43.05" y2="136.97" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="5.5" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="80.6" y1="46.87" x2="43.05" y2="5.5" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="118.57" y1="136.97" x2="118.57" y2="5.5" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="156.12" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
-          <line className={styles.switch} x1="81.02" y1="95.6" x2="118.57" y2="136.97" style={{fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px'}}/>
+          <line
+            className={styles.switch}
+            x1="43.05"
+            y1="5.5"
+            x2="43.05"
+            y2="136.97"
+            style={{ fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px' }}
+          />
+          <line
+            className={styles.switch}
+            x1="5.5"
+            y1="46.87"
+            x2="43.05"
+            y2="5.5"
+            style={{ fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px' }}
+          />
+          <line
+            className={styles.switch}
+            x1="80.6"
+            y1="46.87"
+            x2="43.05"
+            y2="5.5"
+            style={{ fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px' }}
+          />
+          <line
+            className={styles.switch}
+            x1="118.57"
+            y1="136.97"
+            x2="118.57"
+            y2="5.5"
+            style={{ fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px' }}
+          />
+          <line
+            className={styles.switch}
+            x1="156.12"
+            y1="95.6"
+            x2="118.57"
+            y2="136.97"
+            style={{ fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px' }}
+          />
+          <line
+            className={styles.switch}
+            x1="81.02"
+            y1="95.6"
+            x2="118.57"
+            y2="136.97"
+            style={{ fill: 'none', stroke: 'var(--primary)', strokeLinecap: 'round', strokeMiterlimit: 10, strokeWidth: '11px' }}
+          />
         </svg>
       </button>
 
@@ -261,7 +355,7 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
         <input type="text" value={searchTo} onChange={handleSearchChangeTo} onFocus={() => setSearchTo('')} />
         {stationsTo.length > 0 && (
           <div className={styles.stationsList}>
-            {stationsTo.map(station => (
+            {stationsTo.map((station) => (
               <div key={station.UICCode} className={styles.stationItem} onClick={() => handleStationClickTo(station.namen.lang)}>
                 {station.namen.lang}
               </div>
@@ -269,39 +363,59 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
           </div>
         )}
       </div>
-      <button className={styles.searchButton} onClick={handleSearchClick}>Zoek reis</button>
 
+      <div className={styles.actionsRow}>
+        <button className={styles.searchButton} onClick={handleSearchClick}>
+          Zoek reis
+        </button>
+        <button
+          className={styles.saveFavoriteButton}
+          onClick={handleSaveFavorite}
+          disabled={!canSaveFavorite || isCurrentRouteFavorite || favorites.length >= MAX_FAVORITES}
+          title={favorites.length >= MAX_FAVORITES ? 'Je kan maximaal 3 favorieten opslaan' : ''}
+        >
+          {isCurrentRouteFavorite ? 'Al favoriet' : 'Opslaan als favoriet'}
+        </button>
+      </div>
 
-      
       {trips.map((trip, index) => (
         <div key={index} className={styles.tripCard} onClick={() => handleTripClick(trip)}>
           <div className={styles.timeInfo}>
-            <span className={trip.legs[0].stops[0].actualDepartureDateTime && trip.legs[0].stops[0].actualDepartureDateTime !== trip.legs[0].stops[0].plannedDepartureDateTime ? "actualTime" : "departureTime"}>
-              {new Date((trip.legs[0].stops[0].actualDepartureDateTime || trip.legs[0].stops[0].plannedDepartureDateTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <span>
+              {new Date(trip.legs[0].stops[0].actualDepartureDateTime || trip.legs[0].stops[0].plannedDepartureDateTime).toLocaleTimeString(
+                [],
+                { hour: '2-digit', minute: '2-digit' },
+              )}
             </span>
             <span className={styles.arrow}> → </span>
-            <span className={trip.legs[trip.legs.length - 1].stops[trip.legs[trip.legs.length - 1].stops.length - 1].actualArrivalDateTime && trip.legs[trip.legs.length - 1].stops[trip.legs[trip.legs.length - 1].stops.length - 1].actualArrivalDateTime !== trip.legs[trip.legs.length - 1].stops[trip.legs[trip.legs.length - 1].stops.length - 1].plannedArrivalDateTime ? "actualTime" : "arrivalTime"}>
-              {new Date((trip.legs[trip.legs.length - 1].stops[trip.legs[trip.legs.length - 1].stops.length - 1].actualArrivalDateTime || trip.legs[trip.legs.length - 1].stops[trip.legs[trip.legs.length - 1].stops.length - 1].plannedArrivalDateTime)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <span>
+              {new Date(
+                trip.legs[trip.legs.length - 1].stops[trip.legs[trip.legs.length - 1].stops.length - 1].actualArrivalDateTime ||
+                  trip.legs[trip.legs.length - 1].stops[trip.legs[trip.legs.length - 1].stops.length - 1].plannedArrivalDateTime,
+              ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
-          <div className={trip.actualDurationInMinutes && trip.actualDurationInMinutes !== trip.plannedDurationInMinutes ? "actualDuration" : "duration"}>
-            Duration: {Math.floor((trip.actualDurationInMinutes || trip.plannedDurationInMinutes) / 60)}:{("0" + ((trip.actualDurationInMinutes || trip.plannedDurationInMinutes) % 60)).slice(-2)}
-          </div>
+          <div>Duration: {formatTravelTime(trip.actualDurationInMinutes || trip.plannedDurationInMinutes)}</div>
         </div>
       ))}
 
       {selectedTrip && (
         <div className={styles.overlay} onClick={closeOverlay}>
-          <div className={styles.overlayContent} onClick={e => e.stopPropagation()}>
-            {/* <button onClick={closeOverlay}>X</button> */}
-
+          <div className={styles.overlayContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.timeInfobig}>
               <span className={styles.departureTime}>
-                {new Date(selectedTrip.legs[0].stops[0].plannedDepartureDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(selectedTrip.legs[0].stops[0].plannedDepartureDateTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </span>
               <span className={styles.arrow}> → </span>
               <span className={styles.arrivalTime}>
-                {new Date(selectedTrip.legs[selectedTrip.legs.length - 1].stops[selectedTrip.legs[selectedTrip.legs.length - 1].stops.length - 1].plannedArrivalDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(
+                  selectedTrip.legs[selectedTrip.legs.length - 1].stops[
+                    selectedTrip.legs[selectedTrip.legs.length - 1].stops.length - 1
+                  ].plannedArrivalDateTime,
+                ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
 
@@ -313,29 +427,21 @@ if (weather && weather.hourly && weather.hourly.temperature_2m) {
                   ))}
                 </div>
                 <div className={styles.trainLength}>
-                  Lengte: {result.lengte} <br/>
-                  spoor: {result.spoor} <br/>
+                  Lengte: {result.lengte}
+                  <br />
+                  spoor: {result.spoor}
+                  <br />
                   drukte: {selectedTrip.legs[index].crowdForecast === 'UNKNOWN' ? 'niet bekend' : selectedTrip.legs[index].crowdForecast}
                 </div>
               </div>
             ))}
-            <div className={styles.info}> 
-            
-            </div>
-
-            </div>
           </div>
+        </div>
       )}
 
-      <a href="/legal" className={styles.footerLink}>Legal</a>
+      <a href="/legal" className={styles.footerLink}>
+        Legal
+      </a>
     </div>
-    
   );
 }
-
-
-
-// npm run dev -- -H 192.168.2.14
-// npm run dev -- -H 10.52.17.152
-
-// http-server out -S -C cert.pem -K key.pem
